@@ -1,14 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace LuisEnmanuel_P1_P4.Models;
 
-namespace LuisEnmanuel_P1_P4.Models;
-
-public record Autor(
-    [property: Key] int IdAutor,
-    string Nombres,
-    string Nacionalidad,
-    DateTime FechaNacimiento,
-    double Sueldo
-    );
-
-
-
+public record Autor
+{
+    public int IdAutor { get; init; }
+    public string Nombres { get; init; } = "";
+    public string Nacionalidad { get; init; } = "";
+    public DateTime FechaNacimiento { get; init; }
+    public double Sueldo { get; init; }
+}

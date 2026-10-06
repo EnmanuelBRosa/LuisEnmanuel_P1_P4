@@ -1,11 +1,12 @@
-﻿using LuisEnmanuel_P1_P4.Data;
+﻿using Dapper;
 using LuisEnmanuel_P1_P4.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
+
 namespace LuisEnmanuel_P1_P4.Services;
 
 public interface IAutorService
 {
+    Task InitializeAsync();
     Task<List<Autor>> ObtenerTodosAsync();
     Task<Autor?> ObtenerPorIdAsync(int id);
     Task<Autor> CrearAsync(Autor autor);
@@ -13,51 +14,63 @@ public interface IAutorService
     Task<bool> EliminarAsync(int id);
 }
 
-public class AutorService(AppDbContext context) : IAutorService
+public class AutorService(IConfiguration config) : IAutorService
 {
+    private readonly string _cs = config.GetConnectionString("DefaultConnection")!;
+
+    public async Task InitializeAsync()
+    {
+        using var conn = new SqliteConnection(_cs);
+        await conn.ExecuteAsync(@"
+            CREATE TABLE IF NOT EXISTS Autores (
+                IdAutor INTEGER PRIMARY KEY AUTOINCREMENT,
+                Nombres TEXT NOT NULL,
+                Nacionalidad TEXT NOT NULL,
+                FechaNacimiento TEXT NOT NULL,
+                Sueldo REAL NOT NULL
+            );");
+    }
+
     public async Task<List<Autor>> ObtenerTodosAsync()
     {
-        return await context.Autores.ToListAsync();
+        using var conn = new SqliteConnection(_cs);
+        var autores = await conn.QueryAsync<Autor>("SELECT * FROM Autores");
+        return autores.ToList();
     }
 
     public async Task<Autor?> ObtenerPorIdAsync(int id)
     {
-        return await context.Autores.FindAsync(id);
+        using var conn = new SqliteConnection(_cs);
+        return await conn.QuerySingleOrDefaultAsync<Autor>(
+            "SELECT * FROM Autores WHERE IdAutor = @id", new { id });
     }
 
     public async Task<Autor> CrearAsync(Autor autor)
     {
-        context.Autores.Add(autor);
-        await context.SaveChangesAsync();
-        return autor;
+        using var conn = new SqliteConnection(_cs);
+        var id = await conn.ExecuteScalarAsync<int>(@"
+        INSERT INTO Autores (Nombres, Nacionalidad, FechaNacimiento, Sueldo)
+        VALUES (@Nombres, @Nacionalidad, @FechaNacimiento, @Sueldo);
+        SELECT last_insert_rowid();", autor);
+        return autor with { IdAutor = id };
     }
+
     public async Task<bool> ActualizarAsync(int id, Autor autor)
     {
-        var existente = await context.Autores.FindAsync(id);
-
-        if (existente is null)
-        {
-            return false;
-        }
-
-        var actualizado = autor with { IdAutor = id };
-        context.Entry(existente).CurrentValues.SetValues(actualizado);
-
-        await context.SaveChangesAsync();
-        return true;
+        using var conn = new SqliteConnection(_cs);
+        var filas = await conn.ExecuteAsync(@"
+            UPDATE Autores
+            SET Nombres = @Nombres, Nacionalidad = @Nacionalidad,
+                FechaNacimiento = @FechaNacimiento, Sueldo = @Sueldo
+            WHERE IdAutor = @id",
+            new { id, autor.Nombres, autor.Nacionalidad, autor.FechaNacimiento, autor.Sueldo });
+        return filas > 0;
     }
 
     public async Task<bool> EliminarAsync(int id)
     {
-        var existente = await context.Autores.FindAsync(id);
-
-        if (existente is null)
-        {
-            return false;
-        }
-
-        context.Autores.Remove(existente);
-        await context.SaveChangesAsync();
-        return true;
+        using var conn = new SqliteConnection(_cs);
+        var filas = await conn.ExecuteAsync("DELETE FROM Autores WHERE IdAutor = @id", new { id });
+        return filas > 0;
     }
 }
