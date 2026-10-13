@@ -1,6 +1,6 @@
 ﻿namespace LuisEnmanuel_P1_P4.Models;
 
-public record Autor(
+public record Autor (
 
    long IdAutor,
    string Nombres,
@@ -8,4 +8,8 @@ public record Autor(
    DateTime FechaNacimiento,
    double Sueldo
 
-);
+)
+
+{
+    public Autor() : this(0, "", "", default, 0) { }
+}
